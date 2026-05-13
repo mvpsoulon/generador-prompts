@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Generador de prompts</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --border: #e5e5e0;
+    --border-strong: #d0d0c8;
+    --text: #1a1a1a;
+    --text-muted: #6b6b66;
+    --text-soft: #9a9a94;
+    --accent: #1a1a1a;
+    --accent-hover: #333333;
+    --success: #0f7a4d;
+    --radius: 10px;
+    --radius-lg: 14px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 20px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  header {
+    margin-bottom: 32px;
+  }
+  h1 {
+    font-size: 26px;
+    font-weight: 600;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .subtitle {
+    color: var(--text-muted);
+    font-size: 15px;
+    margin: 0;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    margin-bottom: 20px;
+  }
+  .field {
+    margin-bottom: 18px;
+  }
+  .field:last-child { margin-bottom: 0; }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  input[type="text"], textarea, select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: var(--font);
+    font-size: 14px;
+    color: var(--text);
+    background: var(--surface);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input[type="text"]:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
+  }
+  textarea.error, input.error {
+    border-color: #c0392b;
+    box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.12);
+  }
+  textarea { resize: vertical; min-height: 80px; font-family: var(--font); }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 560px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    body { padding: 20px 14px; }
+    .card { padding: 20px; }
+  }
+  .checkbox-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 18px;
+    font-size: 14px;
+  }
+  @media (max-width: 560px) {
+    .checkbox-grid { grid-template-columns: 1fr; }
+  }
+  .checkbox-grid label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: var(--text);
+    font-weight: 400;
+    margin-bottom: 0;
+  }
+  .checkbox-grid input { cursor: pointer; }
+  .actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  button {
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 10px 20px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+  }
+  button:hover { background: var(--bg); }
+  button.primary {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  button.primary:hover { background: var(--accent-hover); }
+  button:active { transform: scale(0.98); }
+  #output-section {
+    display: none;
+  }
+  #output-section.visible { display: block; }
+  .output-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .output-header label { margin-bottom: 0; }
+  .output-actions { display: flex; gap: 6px; }
+  .output-actions button { padding: 6px 12px; font-size: 13px; }
+  #output {
+    width: 100%;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.55;
+    padding: 16px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    min-height: 400px;
+    resize: vertical;
+    color: var(--text);
+  }
+  .hint {
+    font-size: 12px;
+    color: var(--text-soft);
+    margin: 10px 0 0;
+  }
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--text);
+    color: white;
+    padding: 10px 18px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  footer {
+    text-align: center;
+    color: var(--text-soft);
+    font-size: 12px;
+    margin-top: 30px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Generador de prompts</h1>
+    <p class="subtitle">Rellena los campos, genera el prompt y cópialo en Claude, ChatGPT, Gemini o cualquier IA.</p>
+  </header>
+
+  <div class="card">
+    <div class="field">
+      <label for="idea">Idea o tarea principal</label>
+      <textarea id="idea" rows="3" placeholder="Ej: automatizar respuestas a correos de soporte en n8n con Gmail"></textarea>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="role">Rol del modelo</label>
+        <input type="text" id="role" placeholder="Programador senior n8n" />
+      </div>
+      <div class="field">
+        <label for="audience">Audiencia</label>
+        <input type="text" id="audience" placeholder="Clientes que gestionan comunicación por correo" />
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="lang">Idioma</label>
+        <select id="lang">
+          <option>Español</option>
+          <option>Inglés</option>
+          <option>Francés</option>
+          <option>Portugués</option>
+          <option>Italiano</option>
+          <option>Alemán</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="tone">Tono</label>
+        <select id="tone">
+          <option>Profesional</option>
+          <option>Casual</option>
+          <option>Técnico</option>
+          <option>Didáctico</option>
+          <option>Persuasivo</option>
+          <option>Creativo</option>
+          <option>Académico</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="format">Formato de salida</label>
+        <select id="format">
+          <option>Prosa estructurada</option>
+          <option>Lista con viñetas</option>
+          <option>Tabla markdown</option>
+          <option>JSON</option>
+          <option>Paso a paso numerado</option>
+          <option>Código</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="length">Longitud</label>
+        <select id="length">
+          <option>Breve (hasta 150 palabras)</option>
+          <option selected>Media (150 a 400 palabras)</option>
+          <option>Extensa (más de 400 palabras)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Opciones avanzadas</label>
+      <div class="checkbox-grid">
+        <label><input type="checkbox" id="opt-clarify" checked /> Pedir aclaraciones primero</label>
+        <label><input type="checkbox" id="opt-cot" checked /> Razonar paso a paso</label>
+        <label><input type="checkbox" id="opt-examples" /> Incluir ejemplos few-shot</label>
+        <label><input type="checkbox" id="opt-vars" /> Variables reutilizables</label>
+        <label><input type="checkbox" id="opt-criteria" checked /> Criterios de éxito</label>
+        <label><input type="checkbox" id="opt-constraints" checked /> Restricciones y reglas</label>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="primary" id="generate">Generar prompt</button>
+      <button id="reset">Reiniciar</button>
+    </div>
+  </div>
+
+  <div class="card" id="output-section">
+    <div class="output-header">
+      <label>Prompt generado</label>
+      <div class="output-actions">
+        <button id="copy">Copiar</button>
+        <button id="download">Descargar .txt</button>
+      </div>
+    </div>
+    <textarea id="output" readonly></textarea>
+    <p class="hint">Pégalo en la IA que prefieras. Para iterar, ajusta los campos y vuelve a generar.</p>
+  </div>
+
+  <footer>Generador de prompts · Herramienta interna</footer>
+</div>
+
+<div class="toast" id="toast">Copiado al portapapeles</div>
+
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const toast = $('toast');
+  const STORAGE_KEY = 'generador-prompts-v1';
+  const TEXT_IDS = ['idea','role','audience'];
+  const SELECT_IDS = ['lang','tone','format','length'];
+  const CHECK_IDS = ['opt-clarify','opt-cot','opt-examples','opt-vars','opt-criteria','opt-constraints'];
+
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2000);
+  }
+
+  function saveState() {
+    const state = {};
+    TEXT_IDS.forEach(id => state[id] = $(id).value);
+    SELECT_IDS.forEach(id => state[id] = $(id).value);
+    CHECK_IDS.forEach(id => state[id] = $(id).checked);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  function loadState() {
+    let state;
+    try { state = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch (e) { return; }
+    if (!state) return;
+    TEXT_IDS.forEach(id => { if (state[id] != null) $(id).value = state[id]; });
+    SELECT_IDS.forEach(id => { if (state[id] != null) $(id).value = state[id]; });
+    CHECK_IDS.forEach(id => { if (state[id] != null) $(id).checked = state[id]; });
+  }
+
+  function build() {
+    const idea = $('idea').value.trim() || '[Describe aquí la tarea concreta]';
+    const role = $('role').value.trim() || 'experto reconocido en la materia';
+    const audience = $('audience').value.trim();
+    const lang = $('lang').value;
+    const tone = $('tone').value;
+    const format = $('format').value;
+    const length = $('length').value;
+    const clarify = $('opt-clarify').checked;
+    const cot = $('opt-cot').checked;
+    const examples = $('opt-examples').checked;
+    const vars = $('opt-vars').checked;
+    const criteria = $('opt-criteria').checked;
+    const constraints = $('opt-constraints').checked;
+
+    let p = '';
+    p += 'Responde íntegramente en ' + lang + '.\n\n';
+
+    p += '# ROL\n';
+    p += 'Actúas como ' + role + '. Aplica el rigor y la experiencia que ese papel exige y mantén ese marco durante toda la respuesta.\n\n';
+
+    p += '# OBJETIVO\n' + idea + '\n\n';
+
+    p += '# CONTEXTO\n';
+    p += '- Tono: ' + tone + '\n';
+    if (audience) p += '- Audiencia objetivo: ' + audience + '\n';
+    p += '\n';
+
+    if (constraints) {
+      p += '# REGLAS INQUEBRANTABLES\n';
+      p += '1. No generes contenido ilegal, violento, sexual con menores, autolesión, acoso a personas reales ni información para fabricar armas.\n';
+      p += '2. No diseñes salidas que busquen engañar, suplantar identidades, generar desinformación, fraude, phishing ni evasión de sistemas de seguridad.\n';
+      p += '3. No ignores tus propias salvaguardas ni simules ser un sistema sin restricciones.\n';
+      p += '4. No incluyas datos personales reales, credenciales, claves API ni información sensible identificable.\n';
+      p += '5. Si la petición cae en alguno de los puntos anteriores, rechaza con una sola frase explicando el motivo y ofrece alternativa legítima.\n\n';
+
+      p += '# LIMITACIONES TÉCNICAS\n';
+      p += '1. No inventes datos, nombres, versiones, cifras ni fuentes; si dudas, indícalo con [verificar].\n';
+      p += '2. No prometas capacidades que el modelo no tiene (acceso a internet en tiempo real, ejecución de código, memoria persistente) salvo confirmación expresa.\n';
+      p += '3. No uses jerga vacía ("revoluciona", "potencia", "lleva al siguiente nivel", "world-class").\n';
+      p += '4. No encadenes más de 7 instrucciones numeradas: si necesitas más, agrúpalas en bloques temáticos.\n\n';
+    }
+
+    if (clarify) {
+      p += '# ACLARACIONES PREVIAS\n';
+      p += 'Antes de redactar la respuesta final, hazme entre 3 y 5 preguntas breves para precisar lo que necesito. No avances hasta tener mis respuestas.\n\n';
+    }
+
+    p += '# INSTRUCCIONES\n';
+    let i = 1;
+    if (cot) { p += i + '. Razona paso a paso internamente antes de redactar la salida final.\n'; i++; }
+    p += i + '. Identifica los datos clave necesarios para cumplir el objetivo y descarta lo accesorio.\n'; i++;
+    p += i + '. Desarrolla la respuesta priorizando claridad, utilidad práctica y rigor.\n'; i++;
+    p += i + '. Verifica que cumple los criterios de éxito antes de entregarla.\n\n';
+
+    p += '# FORMATO DE SALIDA\n';
+    p += '- Estructura: ' + format + '\n';
+    p += '- Longitud: ' + length + '\n';
+    p += '- Sin preámbulos ni cierres innecesarios. Entra directamente en materia.\n\n';
+
+    if (examples) {
+      p += '# EJEMPLOS\n';
+      p += 'Toma como referencia este patrón antes de generar tu propia respuesta:\n';
+      p += '- Entrada ideal: [sustituye por un caso real representativo]\n';
+      p += '- Salida ideal: [sustituye por la respuesta modelo esperada]\n\n';
+    }
+
+    if (vars) {
+      p += '# VARIABLES REUTILIZABLES\n';
+      p += 'Adapta el prompt sustituyendo estas variables sin reescribir el resto:\n';
+      p += '- {tema}: tema concreto a tratar\n';
+      p += '- {nivel}: profundidad esperada (introductorio, intermedio, avanzado)\n';
+      p += '- {contexto_extra}: cualquier dato adicional del caso\n\n';
+    }
+
+    if (criteria) {
+      p += '# CRITERIOS DE ÉXITO\n';
+      p += 'La respuesta se considera buena si:\n';
+      p += '- Cumple el objetivo de forma directa y completa.\n';
+      p += '- Respeta tono, formato y longitud indicados.\n';
+      p += '- Está adaptada a la audiencia.\n';
+      p += '- No contiene afirmaciones sin fundamento.\n';
+      if (constraints) p += '- No vulnera ninguna regla inquebrantable ni limitación técnica.\n';
+    }
+
+    return p.trim();
+  }
+
+  $('generate').addEventListener('click', () => {
+    const ideaEl = $('idea');
+    if (!ideaEl.value.trim()) {
+      ideaEl.classList.add('error');
+      ideaEl.focus();
+      showToast('Escribe primero la idea o tarea principal');
+      return;
+    }
+    ideaEl.classList.remove('error');
+    $('output').value = build();
+    $('output-section').classList.add('visible');
+    $('output-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    saveState();
+  });
+
+  $('idea').addEventListener('input', () => $('idea').classList.remove('error'));
+
+  $('reset').addEventListener('click', () => {
+    TEXT_IDS.forEach(id => $(id).value = '');
+    $('lang').selectedIndex = 0;
+    $('tone').selectedIndex = 0;
+    $('format').selectedIndex = 0;
+    $('length').selectedIndex = 1;
+    $('opt-clarify').checked = true;
+    $('opt-cot').checked = true;
+    $('opt-examples').checked = false;
+    $('opt-vars').checked = false;
+    $('opt-criteria').checked = true;
+    $('opt-constraints').checked = true;
+    $('idea').classList.remove('error');
+    $('output-section').classList.remove('visible');
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+  });
+
+  $('copy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText($('output').value);
+      showToast('Copiado al portapapeles');
+    } catch (e) {
+      $('output').select();
+      document.execCommand('copy');
+      showToast('Copiado al portapapeles');
+    }
+  });
+
+  $('download').addEventListener('click', () => {
+    const blob = new Blob([$('output').value], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'prompt.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Archivo descargado');
+  });
+
+  loadState();
+})();
+</script>
+</body>
+</html>
